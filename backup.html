@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset=utf-8>
+    <title>My first three.js app</title>
+    <style>
+        body {
+            margin: 0;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%
+        }
+    </style>
+</head>
+
+<body>
+    <script src="js/three.js"></script>
+    <script src="js/perlin.js"></script>
+    <script>
+        var pn = new Perlin('kygo');
+        var renderer = new THREE.WebGLRenderer({
+            antialias: true
+        });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        var rotateX = Math.PI / 3;
+        var camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 1000);
+        camera.position.set(0, 0, 50);
+        camera.lookAt(0, 0, 0);
+        camera.rotation.y = 0; // Y first
+        camera.rotation.x = rotateX; // X second
+        camera.rotation.z = 0;
+
+        var scene = new THREE.Scene();
+
+        var topMaterial = new THREE.LineBasicMaterial({
+            color: 0xee82ee
+        });
+        var mediumMaterial = new THREE.LineBasicMaterial({
+            color: 0xa44ebe
+        });
+        var lowMaterial = new THREE.LineBasicMaterial({
+            color: 0x5e278e
+        });
+        // var bottomMaterial = new THREE.LineBasicMaterial({
+        //     color: 0x250d5e
+        // });
+
+
+
+        scene.background = new THREE.Color(0x03002e)
+        scene.fog = new THREE.Fog(new THREE.Color(0x03002e), 1, 250);
+
+        var terrain = [];
+        var vectors = [];
+        var geometryList = [];
+
+        var scale = 5;
+        var maxHeight = 20;
+        var minHeight = -10;
+        var zoneWidth = maxHeight - minHeight;
+        var zonePart = zoneWidth / 2;
+        var zone2 = minHeight + zonePart;
+        //var zone3 = minHeight + zonePart * 2;
+        //var zone4 = minHeight + zonePart * 3;
+        //console.log(zoneWidth, zonePart, zone2, zone3);
+        var w = 500;
+        var h = 500;
+        var cols = w / scale;
+        var rows = h / scale;
+        var flying = 0;
+
+
+        var yMin = Math.floor((rows / 2) * -1);
+        var yMax = Math.floor(rows / 2);
+
+        var xMin = Math.floor((cols / 2) * -1);
+        var xMax = Math.floor(cols / 2)
+
+        function randomNumber(min, max) {
+            min = Math.ceil(min);
+            max = Math.floor(max);
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function scaleNumber(num, in_min, in_max, out_min, out_max) {
+            return (num - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+        }
+
+        function calculateTerrain() {
+            // terrain = [];
+            // vectors = [];
+            flying = (flying + 0.02);
+
+
+            var yOff = flying;
+            for (var y = yMin; y < yMax; y++) {
+                var xOff = 0;
+                for (var x = xMin; x < xMax; x++) {
+                    // if (typeof terrain[y] != 'object') {
+                    //     terrain[y] = [];
+                    // }
+                    if (typeof vectors[y] != 'object') {
+                        vectors[y] = [];
+                    }
+                    //console.log(noise)
+                    //terrain[y][x] = scaleNumber(pn.noise(xOff, yOff, 0), 0, 1, minHeight, maxHeight); //randomNumber(0, 4);
+                    if (typeof vectors[y][x] == 'object') {
+                        vectors[y][x].set(x * scale, y * scale, scaleNumber(pn.noise(xOff, yOff, 0), 0, 1, minHeight, maxHeight))
+                    } else {
+                        vectors[y][x] = new THREE.Vector3(x * scale, y * scale, scaleNumber(pn.noise(xOff, yOff, 0), 0, 1, minHeight, maxHeight))
+                    }
+                    xOff += 0.175;
+                }
+                yOff += 0.185;
+            }
+        }
+
+        function renderGrid() {
+            for (var y = yMin; y < yMax - 1; y++) {
+                var geometry = new THREE.Geometry();
+                for (var x = xMin; x < xMax - 1; x++) {
+                    renderTriangle(y, x, geometry);
+                }
+                var line = new THREE.Line(geometry, topMaterial);
+                geometryList[y] = line;
+                scene.add(line);
+            }
+        }
+
+        // function getMaterialColor(avgHeight) {
+        //     var lineMaterial = topMaterial;
+        //     if (avgHeight < zone2) {
+        //         lineMaterial = lowMaterial;
+        //     } else if (avgHeight <= maxHeight) {
+        //         lineMaterial = topMaterial;
+        //     }
+        //     return lineMaterial;
+        // }
+
+        function renderTriangle(y, x, geometry) {
+            geometry.vertices.push(vectors[y + 1][x]); //v0-BL
+            geometry.vertices.push(vectors[y][x]); //v1-TL
+            geometry.vertices.push(vectors[y][x + 1]); //v2-TR
+            geometry.vertices.push(vectors[y + 1][x]); //v0-BL
+            //console.log(terrain[y][x], terrain[y + 1][x], terrain[y][x + 1])
+            //return (terrain[y][x]);
+        }
+
+        function animate() {
+            setTimeout(function () {
+                requestAnimationFrame(animate);
+            }, 1000 / 40);
+            //requestAnimationFrame(animate);
+
+            //scene.children = [];
+            calculateTerrain();
+            //renderGrid();
+            for (let i = 0; i < geometryList.length; i++) {
+                geometryList[i].verticesNeedUpdate = true;
+            }
+            renderer.render(scene, camera);
+        }
+        calculateTerrain();
+        renderGrid();
+        animate();
+    </script>
+</body>
+
+</html>
